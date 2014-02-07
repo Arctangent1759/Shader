@@ -1,0 +1,409 @@
+#include <GL/glut.h>
+#include <GL/glu.h>
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <time.h>
+#include <math.h>
+
+
+#define PI 3.14159265  // Should be used from mathlib
+inline float sqr(float x) { return x*x; }
+
+using namespace std;
+
+//****************************************************
+// Some Classes
+//****************************************************
+
+class Viewport;
+
+class Viewport {
+    public:
+        int w, h; // width and height
+};
+
+
+//****************************************************
+// Global Variables
+//****************************************************
+Viewport	viewport;
+
+
+
+
+//****************************************************
+// Simple init function
+//****************************************************
+void initScene(){
+    // Nothing to do here for this simple example.
+
+}
+
+
+//****************************************************
+// reshape viewport if the window is resized
+//****************************************************
+void myReshape(int w, int h) {
+    viewport.w = w;
+    viewport.h = h;
+
+    glViewport (0,0,viewport.w,viewport.h);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(0, viewport.w, 0, viewport.h);
+
+}
+
+
+//****************************************************
+// A routine to set a pixel by drawing a GL point.  This is not a
+// general purpose routine as it assumes a lot of stuff specific to
+// this example.
+//****************************************************
+
+void setPixel(int x, int y, GLfloat r, GLfloat g, GLfloat b) {
+    glColor3f(r, g, b);
+    glVertex2f(x + 0.5, y + 0.5);   // The 0.5 is to target pixel
+    // centers 
+    // Note: Need to check for gap
+    // bug on inst machines.
+}
+
+//****************************************************
+// Draw a filled circle.  
+//****************************************************
+
+double norm(const vector<double> v);
+vector<double> normalize(const vector<double> v);
+
+
+//////////////////////////
+//----------------------//
+//| :: Vector Utils :: |//
+//----------------------//
+//////////////////////////
+
+
+
+//****************************************************
+// Adds vector u and vector v
+//***************************************************
+vector<double> operator+(const vector<double>& u, const vector<double>& v){
+    vector<double> out(3);
+    out[0]=u[0]+v[0];
+    out[1]=u[1]+v[1];
+    out[2]=u[2]+v[2];
+    return out;
+}
+
+//****************************************************
+// Subtracts vector u and vector v
+//***************************************************
+vector<double> operator-(const vector<double>& u, const vector<double>& v){
+    vector<double> out(3);
+    out[0]=u[0]-v[0];
+    out[1]=u[1]-v[1];
+    out[2]=u[2]-v[2];
+    return out;
+}
+
+//****************************************************
+// Returns the cross product of vector u and vector v
+//***************************************************
+vector<double> cross(const vector<double>& u, const vector<double>& v){
+    vector<double> out(3);
+    out[0]=u[1] * v[2] - u[2] * v[1];
+    out[1]=u[2] * v[0] - u[0] * v[2];
+    out[2]=u[0] * v[1] - u[1] * v[0];
+    return out;
+}
+
+//****************************************************
+// Takes the dot product of vector u and vector v
+//***************************************************
+double operator*(const vector<double>& u, const vector<double>& v){
+    return u[0]*v[0]+u[1]*v[1]+u[2]*v[2];
+}
+
+//****************************************************
+// Scales vector v by scalar s
+//***************************************************
+vector<double> operator*(const vector<double>& v, double s){
+    vector<double> out(3);
+    out[0]=s*v[0];
+    out[1]=s*v[1];
+    out[2]=s*v[2];
+    return out;
+}
+
+//****************************************************
+// Scales vector v by scalar s
+//***************************************************
+vector<double> operator*(double s, const vector<double>& v){
+    return v*s;
+}
+vector<double> operator/(const vector<double>& v, double s){
+    return v*(1.0/s);
+}
+
+//****************************************************
+// Elementwise multiplication of vectors u and v
+//***************************************************
+vector<double> mult(vector<double> u, vector<double> v){
+    vector<double> out(3);
+    out[0]=u[0]*v[0];
+    out[1]=u[1]*v[1];
+    out[2]=u[2]*v[2];
+    return out;
+}
+
+//****************************************************
+// Takes the squared norm of vector v
+//***************************************************
+double normSq(const vector<double> v){
+    return v*v;
+}
+
+//****************************************************
+// Takes the norm of vector v
+//***************************************************
+double norm(const vector<double> v){
+    return sqrt(normSq(v));
+}
+
+//****************************************************
+// Normalizes vector v
+//***************************************************
+vector<double> normalize(const vector<double> v){
+    return v/norm(v);
+}
+
+//****************************************************
+// Projects vector u into vector v
+//***************************************************
+vector<double> project(const vector<double>& u, const vector<double>& v){
+    return (((u)*(v))/normSq(v))*v;
+}
+
+//****************************************************
+// Takes the perpendicular component of vector u on
+// vector v.
+//***************************************************
+vector<double> perp(const vector<double>& u, const vector<double>& v){
+    return u-project(u,v);
+}
+
+
+/////////////////////////////////
+//-----------------------------//
+//| :: Rendering Functions :: |//
+//-----------------------------//
+/////////////////////////////////
+
+#include <complex>
+double mandelCheck( double x, double y, int n, double threshold){
+    complex<double> cOffset(x*2,y*2);
+    complex<double> z(0.0,0.0);
+    int i;
+    for (i = 0; abs(z) < threshold && i < n; i++){
+        z=z*z+cOffset;
+    }
+    return (double)(i)/n;
+}
+double mandelCheck( double x, double y){
+    return mandelCheck(x,y,18,2.0);
+}
+
+//****************************************************
+// Renders a mandelbrot sphere <3
+//***************************************************
+void mandelSphere(float centerX, float centerY, float radius, vector<double> ca, vector<double> cl, vector<double> cr1, vector<double> cr2,  vector<double> cp, double p){
+    glBegin(GL_POINTS);
+
+    int i,j;  // Pixel indices
+
+    int minI = max(0,(int)floor(centerX-radius));
+    int maxI = min(viewport.w-1,(int)ceil(centerX+radius));
+
+    int minJ = max(0,(int)floor(centerY-radius));
+    int maxJ = min(viewport.h-1,(int)ceil(centerY+radius));
+
+    vector<double> n(3), l(3), e(3), r(3);
+    vector<double> cr(3);
+
+    e[0]=0.0;
+    e[1]=0.0;
+    e[2]=1.0;
+
+    l[0]=1.0;
+    l[1]=0.5;
+    l[2]=1.0;
+    l=normalize(l);
+
+
+    for (i=0;i<viewport.w;i++) {
+        for (j=0;j<viewport.h;j++) {
+
+            // Location of the center of pixel relative to center of sphere
+            float x = (i+0.5-centerX);
+            float y = (j+0.5-centerY);
+
+            float dist = sqrt(sqr(x) + sqr(y));
+
+            if (dist<=radius) {
+                float z = sqrt(radius*radius-dist*dist);
+                n[0]=x;
+                n[1]=y;
+                n[2]=z;
+                n = normalize(n);
+
+                r=2*(l*n)*n-l;
+                double t = atan(y/sqrt(x*x+z*z))/PI;
+                double s = atan(x/z)/(PI);
+
+
+                //double m = pow(mandelCheck((s-.2)*1.90,t*1.90),1.65);
+                //cr = m*cr1+(1.0-m)*cr2;
+                bool m = (int)round(100*((s-t)*(s+t)))%2==0;
+                cr = m?cr1:cr2;
+
+                vector<double> clr = mult(cr,ca)+mult(cr,cl*max(0.0,n*l))+mult(cl,cp)*pow(max(0.0,e*r),p);
+                setPixel(i,j, clr[0], clr[1], clr[2]);
+            }
+
+
+        }
+    }
+    glEnd();
+}
+
+//****************************************************
+// Renders a sphere
+//***************************************************
+void renderSphere(float centerX, float centerY, float radius, vector<double> ca, vector<double> cl, vector<double> cr, vector<double> cp, double p){
+    glBegin(GL_POINTS);
+
+    int i,j;  // Pixel indices
+
+    int minI = max(0,(int)floor(centerX-radius));
+    int maxI = min(viewport.w-1,(int)ceil(centerX+radius));
+
+    int minJ = max(0,(int)floor(centerY-radius));
+    int maxJ = min(viewport.h-1,(int)ceil(centerY+radius));
+
+    vector<double> n(3), l(3), e(3), r(3);
+
+    e[0]=0.0;
+    e[1]=0.0;
+    e[2]=1.0;
+
+    l[0]=1.0;
+    l[1]=0.5;
+    l[2]=1.0;
+    l=normalize(l);
+
+
+    for (i=0;i<viewport.w;i++) {
+        for (j=0;j<viewport.h;j++) {
+
+            // Location of the center of pixel relative to center of sphere
+            float x = (i+0.5-centerX);
+            float y = (j+0.5-centerY);
+
+            float dist = sqrt(sqr(x) + sqr(y));
+
+            if (dist<=radius) {
+                float z = sqrt(radius*radius-dist*dist);
+                n[0]=x;
+                n[1]=y;
+                n[2]=z;
+                n = normalize(n);
+
+                r=2*(l*n)*n-l;
+
+                vector<double> clr = mult(cr,ca)+mult(cr,cl*max(0.0,n*l))+mult(cl,cp)*pow(max(0.0,e*r),p);
+                setPixel(i,j, clr[0], clr[1], clr[2]);
+            }
+
+
+        }
+    }
+    glEnd();
+}
+
+//****************************************************
+// function that does the actual drawing of stuff
+//***************************************************
+void myDisplay() {
+    glClear(GL_COLOR_BUFFER_BIT);				// clear the color buffer
+    glMatrixMode(GL_MODELVIEW);			        // indicate we are specifying camera transformations
+    glLoadIdentity();				        // make sure transformation is "zero'd"
+
+    vector<double> ca(3); //color of ambient light
+    ca[0]=.15;
+    ca[1]=.15;
+    ca[2]=.15;
+    vector<double> cl(3); //color of light source
+    cl[0]=.85;
+    cl[1]=.85;
+    cl[2]=.85;
+    vector<double> cr1(3); //diffuse reflectance
+    cr1[0]=0.0;
+    cr1[1]=0.0;
+    cr1[2]=0.0;
+    vector<double> cr2(3); //diffuse reflectance
+    cr2[0]=1.0;
+    cr2[1]=0.20;
+    cr2[2]=0.0;
+    vector<double> cp(3); //specular reflectance
+    cp[0]=0.7;
+    cp[1]=0.7;
+    cp[2]=0.7;
+    mandelSphere(viewport.w / 2.0 , viewport.h / 2.0 , min(viewport.w, viewport.h) / 4.0, ca, cl, cr1, cr2, cp, 16.0);
+    
+
+    glFlush();
+    glutSwapBuffers();					// swap buffers (we earlier set double buffer)
+}
+
+
+
+//****************************************************
+// the usual stuff, nothing exciting here
+//****************************************************
+int main(int argc, char *argv[]) {
+    //This initializes glut
+    glutInit(&argc, argv);
+
+    //This tells glut to use a double-buffered window with red, green, and blue channels 
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+
+    // Initalize theviewport size
+    viewport.w = 400;
+    viewport.h = 400;
+
+    //The size and position of the window
+    glutInitWindowSize(viewport.w, viewport.h);
+    glutInitWindowPosition(0,0);
+    glutCreateWindow(argv[0]);
+
+    initScene();							// quick function to set up scene
+
+    glutDisplayFunc(myDisplay);				// function to run when its time to draw something
+    glutReshapeFunc(myReshape);				// function to run when the window gets resized
+
+    glutMainLoop();							// infinite loop that will keep drawing and resizing
+    // and whatever else
+
+    return 0;
+}
+
+
+
+
+
+
+
+
