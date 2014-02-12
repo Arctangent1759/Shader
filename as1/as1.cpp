@@ -240,11 +240,6 @@ class Material{
             this->colorFn=cr;
             this->init(cp,p);
         }
-        Material(double r, double g, double b, vector<double> cp, double p){
-            this->colorFn=NULL;
-            this->cr = makeVector(r,g,b);
-            this->init(cp,p);
-        }
         Material(vector<double> cr, vector<double> cp, double p){
             this->colorFn=NULL;
             this->cr = cr;
@@ -299,6 +294,7 @@ class Sphere{
 
 
 struct Args{
+    //Default args
     vector<Light*> lights;
     vector<double> ca;
     vector<double> cp;
@@ -306,6 +302,12 @@ struct Args{
     string texture;
     double p;
     string outFile;
+
+    //Shadow args
+    int areaLightWidth;
+    int areaLightHeight;
+    double areaLightZ;
+    double areaLightResolution;
 } args;
 
 map<string,Material> textures;
@@ -537,8 +539,11 @@ void drawSpheres(vector<Sphere> spheres, vector<double> ca, bool shadow){
                     for (vector<Light*>::iterator light = lights.begin(); light != lights.end(); light++){
                         l = (*light)->getLightVector(pos);
                         r=2*(l*n)*n-l;
+
+                        vector<double> diffuse = mult(m.getCr(s,t),(*light)->getCl()*max(0.0,n*l));
+                        vector<double> specular = mult((*light)->getCl(),m.getCp())*pow(max(0.0,e*r),m.getP());
+
                         if (shadow){
-                            bool draw = true;
                             double fuzz = 1.0;
                             vector<double> otherCenter;
                             vector<double> displacement;
@@ -547,16 +552,16 @@ void drawSpheres(vector<Sphere> spheres, vector<double> ca, bool shadow){
                                     otherCenter = makeVector(otherSphere->x,otherSphere->y,0);
                                     displacement = otherCenter-pos;
                                     if (norm(displacement-project(displacement,l)) < otherSphere->radius && displacement*l>0){
-                                        draw=false;
                                         fuzz*=(norm(displacement-project(displacement,l)))/otherSphere->radius;
                                     }
                                 }
                             }
-                            if (draw || true){
-                                clr = clr + pow(fuzz,10)*(mult(m.getCr(s,t),(*light)->getCl()*max(0.0,n*l))+pow(fuzz,5)*mult((*light)->getCl(),m.getCp())*pow(max(0.0,e*r),m.getP()));
+                            //clr = clr + pow(fuzz,10)*(diffuse+pow(fuzz,5)*specular);
+                            if (fuzz == 1.0){
+                                clr = clr + diffuse + specular;
                             }
                         }else{
-                            clr = clr + mult(m.getCr(s,t),(*light)->getCl()*max(0.0,n*l))+mult((*light)->getCl(),m.getCp())*pow(max(0.0,e*r),m.getP());
+                            clr = clr + diffuse + specular;
                         }
                     }
                     glColor3f(clr[0], clr[1], clr[2]);
@@ -581,19 +586,22 @@ void shadowRender() {
     glLoadIdentity();
 
     vector<Light*> lights;
-    lights.push_back(new PointLight(2.0*viewport.w,viewport.h/2.0,-300.0,makeVector(1.00,1.00,1.00)));
-    //lights.push_back(new PointLight(2.0*viewport.w,viewport.h,0.0,makeVector(1.00,1.00,1.00)));
-    //lights.push_back(new PointLight(2.0*viewport.w,0.0,0.0,makeVector(1.00,1.00,1.00)));
-    //lights.push_back(new DirectionalLight(-1.0,0,0,makeVector(1.0,1.0,1.0)));
+    const double OFFSET = args.areaLightResolution;
+    const double Z_OFFSET = args.areaLightZ*min(viewport.w,viewport.h)/4.5;
+    const double numA = args.areaLightWidth;
+    const double numB = args.areaLightHeight;
+    for (int i = -numA; i <= numA; i++){
+        for (int j = -numB; j <= numB; j++){
+            lights.push_back(new PointLight(2.0*viewport.w,viewport.h/2.0+i*OFFSET,j*OFFSET + Z_OFFSET,makeVector(1.00,1.00,1.00)/((2*numA+1)*(2*numB+1))));
+        }
+    }
 
     Material tiger(tigerTexture, makeVector(.7,.7,.7), 16.0);
     Material poke(pokeball, makeVector(.7,.7,.7), 16.0);
 
     vector<Sphere> spheres;
-    spheres.push_back(Sphere(viewport.w*3.0/4.0,viewport.h/2.0,min(viewport.w,viewport.h)/16.0,tiger,lights));
+    spheres.push_back(Sphere(viewport.w*3.0/4.0,viewport.h*1.0/2.0,min(viewport.w,viewport.h)/16.0,tiger,lights));
     spheres.push_back(Sphere(viewport.w*1.0/4.0,viewport.h/2.0,min(viewport.w,viewport.h)/4.5,poke,lights));
-    //spheres.push_back(Sphere(viewport.w*3.0/4.0,viewport.h*3.0/4.0,min(viewport.w,viewport.h)/8.0,poke,lights));
-    //spheres.push_back(Sphere(viewport.w*3.0/4.0,viewport.h*1.0/4.0,min(viewport.w,viewport.h)/8.0,poke,lights));
     drawSpheres(spheres,makeVector(.1,.1,.1),true);
 
     glFlush();
@@ -618,7 +626,7 @@ void demoRender() {
     Material tiger = textures["tiger"];
     Material poke = textures["pokeball"];
     Material mandel = textures["mandelbrot"];
-    Material color(0,0,1, makeVector(.7,.7,.7), 16.0);
+    Material color(makeVector(0,0,1), makeVector(.7,.7,.7), 16.0);
 
     vector<Sphere> spheres;
     spheres.push_back(Sphere(viewport.w*1.0/4.0 , viewport.h*1.0/4.0, min(viewport.w,viewport.h)/4.5, tiger, lights));
@@ -646,7 +654,7 @@ void pokemansRender() {
     spheres.push_back(Sphere(viewport.w*2.0/4.0 , viewport.h*1.0/3.0, min(viewport.w,viewport.h)/8.0, textures["masterball"], lights));
     spheres.push_back(Sphere(viewport.w*3.2/4.0 , viewport.h*1.0/3.0, min(viewport.w,viewport.h)/8.0, textures["gsball"], lights));
     drawSpheres(spheres,makeVector(.1,.1,.1),false);
-    
+
 
     glFlush();
     glutSwapBuffers();
@@ -707,6 +715,11 @@ int main(int argc, char *argv[]) {
     args.p=0;
     args.outFile="";
 
+    args.areaLightWidth=1;
+    args.areaLightHeight=1;
+    args.areaLightZ=-1.3;
+    args.areaLightResolution=5;
+
 
     for (int i = 1; i < argc; i++){
         if ((string)argv[i]=="-h" || (string)argv[i]=="--help"){ 
@@ -726,6 +739,38 @@ int main(int argc, char *argv[]) {
             myDisplay = pokemansRender;
         }else if ((string)argv[i]=="--shadow"){ 
             myDisplay = shadowRender;
+        }else if ((string)argv[i]=="--shadow-areaLight-width"){ 
+            if (i+1 >= argc){
+                cout << "Unexpected end of arglist." << endl;
+                usage(argv[0]);
+                return 1;
+            }
+            args.areaLightWidth=atof(argv[i+1]);
+            i+=1;
+        }else if ((string)argv[i]=="--shadow-areaLight-height"){ 
+            if (i+1 >= argc){
+                cout << "Unexpected end of arglist." << endl;
+                usage(argv[0]);
+                return 1;
+            }
+            args.areaLightHeight=atof(argv[i+1]);
+            i+=1;
+        }else if ((string)argv[i]=="--shadow-areaLight-z"){ 
+            if (i+1 >= argc){
+                cout << "Unexpected end of arglist." << endl;
+                usage(argv[0]);
+                return 1;
+            }
+            args.areaLightZ=atof(argv[i+1]);
+            i+=1;
+        }else if ((string)argv[i]=="--shadow-areaLight-resolution"){ 
+            if (i+1 >= argc){
+                cout << "Unexpected end of arglist." << endl;
+                usage(argv[0]);
+                return 1;
+            }
+            args.areaLightResolution=atof(argv[i+1]);
+            i+=1;
         }else if ((string)argv[i]=="--texture" || (string)argv[i]=="-t" ){ 
             if (i+1 >= argc){
                 cout << "Unexpected end of arglist." << endl;
