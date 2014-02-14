@@ -1,0 +1,16 @@
+{
+    "twolight.png":"./as1 -pl 2 2 2 0.6 0.6 0.6 -dl 0 1 -1 0 0.4 0.4 -kd 1 1 0 -ka 0.1 0.1 0 -ks 0.8 0.8 0.8 -sp 16 "
+    "diffuse.png":"./as1 -pl 200 200 200 0.6 0.6 0.6 -kd 1 1 0",
+
+    "specularPoint.png":"./as1 -pl 2 2 2 0.6 0.6 0.6 -ks 0.8 0.8 0.8 -sp 16"
+    "specularDirectional.png":"./as1 -dl -1 -1 -1 0.6 0.6 0.6 -ks 0.8 0.8 0.8 -sp 16"
+
+    "combinedPoint.png":"./as1 -pl 2 2 2 0.6 0.6 0.6 -kd 1 1 0 -ka 0.1 0.1 0 -ks 0.8 0.8 0.8 -sp 16"
+    "combinedDirectional.png":"./as1 -dl 1 -1 -1 0.6 0.6 0.6 -kd 1 1 0 -ka 0.1 0.1 0 -ks 0.8 0.8 0.8 -sp 16"
+    "shadow.png":"./as1 --shadow",
+    "shadow_arealight.png":"./as1 --shadow --shadow-areaLight-height 1 --shadow-areaLight-width 1 --shadow-areaLight-z -1.3 --shadow-areaLight-resolution 5",
+    "demo.png":"./as1 --demo",
+    "pokemans.png":"./as1 --pokemans",
+    "heart.png":"./as1 --heart -pl 0 200 400 1 1 1 -kd 1 0 0 -ka 0.1 0.1 0.1 -ks 0.8 0.8 0.8 -sp 32",
+    "texture.png":"./as1 -t tiger -dl 1 1 -2 1 1 1 -kd 1 0 0 -ka 0.1 0.1 0.1 -ks 0.8 0.8 0.8 -sp 32",
+}

@@ -327,7 +327,7 @@ void initScene(){
 void myReshape(int w, int h) {
     viewport.w = w;
     viewport.h = h;
-    sphereRadius = min(viewport.w,viewport.h)/2.5;
+    sphereRadius = min(viewport.w,viewport.h)/2.2;
 
     glViewport (0,0,viewport.w,viewport.h);
     glMatrixMode(GL_PROJECTION);
@@ -499,7 +499,7 @@ vector<double> black(double s, double t){return makeVector(0.0,0.0,0.0);}
 //****************************************************
 // Renders a heart
 //***************************************************
-void drawHeart(double centerX, double centerY, double dimension, vector<double> ca, vector<double> cr, vector<double> cs, vector<Light*> lights){
+void drawHeart(double centerX, double centerY, double dimension, vector<double> ca, vector<double> cr, vector<double> cs, double p, vector<Light*> lights){
     glBegin(GL_POINTS);
 
     int minI = max(0,(int)floor(centerX-4.0*dimension))-6;
@@ -542,7 +542,7 @@ void drawHeart(double centerX, double centerY, double dimension, vector<double> 
                 for (vector<Light*>::iterator light = lights.begin(); light != lights.end(); light++){
                     vector<double> r=2*((*light)->getLightVector(pos)*n)*n-(*light)->getLightVector(pos);
                     vector<double> diffuse = mult(cr,(*light)->getCl()*max(0.0,n*(*light)->getLightVector(pos)));
-                    vector<double> specular = mult((*light)->getCl(),cs)*pow(max(0.0,e*r),16.0);
+                    vector<double> specular = mult((*light)->getCl(),cs)*pow(max(0.0,e*r),p);
                     clr = clr + diffuse + specular;
                 }
                 glColor3f(clr[0], clr[1], clr[2]);
@@ -640,9 +640,10 @@ void heartRender() {
     glMatrixMode(GL_MODELVIEW);	
     glLoadIdentity();
 
-    vector<Light*> lights;
-    lights.push_back(new DirectionalLight(0,-1,-1,makeVector(1.0,1.0,1.0)));
-    drawHeart(viewport.w/2,viewport.h/2,min(viewport.w,viewport.h)/10.0, makeVector(.1,.1,.1), makeVector(1.0,0.0,0.0), makeVector(1.0,1.0,1.0), lights);
+    //vector<Light*> lights;
+    //lights.push_back(new DirectionalLight(0,-1,-1,makeVector(1.0,1.0,1.0)));
+    
+    drawHeart(viewport.w/2,viewport.h/2,min(viewport.w,viewport.h)/10.0, args.ca, args.cr, args.cp, args.p, args.lights);
 
     glFlush();
     glutSwapBuffers();
@@ -758,6 +759,12 @@ void usage(string myName){
     cout << "[-dl <x> <y> <z> <r> <g> <b>] adds a color rgb(<r>,<g>,<b>) direction light pointing in direction (<x>,<y>,<z>)" << endl;
 }
 
+void onKeyPress(unsigned char key, int x, int y){
+    if (key==' '){
+        exit(0);
+    }
+}
+
 //****************************************************
 // the usual stuff, nothing exciting here
 //****************************************************
@@ -783,9 +790,9 @@ int main(int argc, char *argv[]) {
     args.p=0;
     args.outFile="";
 
-    args.areaLightWidth=1;
-    args.areaLightHeight=1;
-    args.areaLightZ=-1.3;
+    args.areaLightWidth=0;
+    args.areaLightHeight=0;
+    args.areaLightZ=0;
     args.areaLightResolution=5;
 
 
@@ -904,7 +911,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
     //Render
     glutInit(&argc, argv); //This initializes glut
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB); //This tells glut to use a double-buffered window with red, green, and blue channels 
@@ -916,6 +922,7 @@ int main(int argc, char *argv[]) {
     initScene(); // set up scene
     glutDisplayFunc(myDisplay);	// function to run when its time to draw something
     glutReshapeFunc(myReshape); // function to run when the window gets resized
+    glutKeyboardFunc(onKeyPress);
     glutMainLoop(); // infinite loop that will keep drawing and resizing
     return 0;
 }
