@@ -499,54 +499,65 @@ vector<double> black(double s, double t){return makeVector(0.0,0.0,0.0);}
 //****************************************************
 // Renders a heart
 //***************************************************
-void drawHeart(double centerX, double centerY, double dimension, vector<double> ca, vector<double> cr, vector<double> cs, vector<Light*> lights){
+//x^2+(y-x*3/2)^2=1
+//x^2+y^2-y*x*3/2+x*3=1
+
+//(y-ym)^2/abs(y1-y2)^2+z^2/b^2=1.0
+void drawHeart(double centerX, double centerY, double dimension){
     glBegin(GL_POINTS);
+    int minI = max(0,(int)floor(centerX-4.0*dimension));
+    int maxI = min(viewport.w-1,(int)ceil(centerX+4.0*dimension));
+    int minJ = max(0,(int)floor(centerY-3.0*dimension));
+    int maxJ = min(viewport.h-1,(int)ceil(centerY+3.0*dimension));
 
-    int minI = max(0,(int)floor(centerX-4.0*dimension))-6;
-    int maxI = min(viewport.w-1,(int)ceil(centerX+4.0*dimension))+6;
-    int minJ = max(0,(int)floor(centerY-3.0*dimension))-6;
-    int maxJ = 2.0*min(viewport.h-1,(int)ceil(centerY+3.0*dimension))+6;
-
-    vector< vector< vector<double> > > geometry(maxI-minI);
-    for (int i = 0; i < geometry.size(); i++){geometry[i]=vector<vector <double> >(maxJ-minJ);}
-
+    double minX=0;
+    double maxX=0;
+    int sig=0;
     for (int j=minJ;j<maxJ;j++) {
         for (int i=minI;i<maxI;i++) {
             double x = (i+0.5-centerX);
             double y = (j+0.5-centerY);
             if (pow(abs(x/(4.0*dimension)),2)+pow(y/(3.0*dimension)-pow(abs(x/(4.0*dimension)),2.0/3.0),2)<=1.0){
+                if (sig==0){
+                    minX=x;
+                }
+                sig=1;
+
                 //Get z
                 double y1=-dimension*(3.0/4.0)*(sqrt(16.0-pow(abs(x)/dimension,2.0))-pow(2.0*abs(x)/dimension,2.0/3.0));
                 double y2=dimension*(3.0/4.0)*(sqrt(16.0-pow(abs(x)/dimension,2.0))+pow(2.0*abs(x)/dimension,2.0/3.0));
                 double ym = (y1+y2)/2.0;
                 double yd = abs(y1-y2)/2;
-                double z=(4.0*dimension)*sqrt(1.0-pow(y-ym,2)/pow(abs(yd),2))*sqrt(1.0-pow(x,2)/pow(4.0*dimension,2));
-                geometry[i-minI][j-minJ]=makeVector(x,y,z);
+
+                double x1=maxX;
+                double x2=minX;
+                double xm = (x1+x2)/2.0;
+
+                double z=(1.0)*sqrt(1.0-pow(y-ym,2)/pow(abs(yd),2));
+
+               /*
+               glColor3f(1.0, 0.0, 0.0);
+               glVertex2f(i + 0.5, j + 0.5);
+               glColor3f(0.0, 1.0, 0.0);
+               glVertex2f(x1 + centerX + 0.5, j + 0.5);
+               glColor3f(1.0, 1.0, 0.0);
+               glVertex2f(x2 + centerX + 0.5, j + 0.5);
+               glColor3f(0.0, 0.0, 1.0);
+               glVertex2f(xm + centerX + 0.5, j + 0.5);
+
+               glColor3f(1.0, 1.0, 0.0);
+               glVertex2f(i + 0.5, y1 + centerY + 0.5);
+               glColor3f(0.0, 1.0, 0.0);
+               glVertex2f(i + 0.5, y2 + centerY + 0.5);
+               glColor3f(0.0, 0.0, 1.0);
+               glVertex2f(i + 0.5, ym + centerY + 0.5);
+               */
+
             }else{
-                geometry[i-minI][j-minJ]=makeVector(NAN,NAN,NAN);
-            }
-        }
-    }
-    double gi, gj;
-    for (int i=minI-1;i<maxI+1;i++) {
-        for (int j=minJ+1;j<maxJ-1;j++) {
-            double x = (i+0.5-centerX);
-            double y = (j+0.5-centerY);
-            if (pow(abs(x/(4.0*dimension)),2)+pow(y/(3.0*dimension)-pow(abs(x/(4.0*dimension)),2.0/3.0),2)<=1.0){
-                gi=i-minI;
-                gj=j-minJ;
-                vector<double> pos = geometry[gi][gj] + makeVector(centerX,centerY,0);
-                vector<double> e = makeVector(0,0,1);
-                vector<double> n = normalize(cross(geometry[gi][gj+6]-geometry[gi][gj-6],geometry[gi-6][gj]-geometry[gi+6][gj]));
-                vector<double> clr = mult(cr,ca);
-                for (vector<Light*>::iterator light = lights.begin(); light != lights.end(); light++){
-                    vector<double> r=2*((*light)->getLightVector(pos)*n)*n-(*light)->getLightVector(pos);
-                    vector<double> diffuse = mult(cr,(*light)->getCl()*max(0.0,n*(*light)->getLightVector(pos)));
-                    vector<double> specular = mult((*light)->getCl(),cs)*pow(max(0.0,e*r),16.0);
-                    clr = clr + diffuse + specular;
+                if (sig==1){
+                    maxX=x;
                 }
-                glColor3f(clr[0], clr[1], clr[2]);
-                glVertex2f(i + 0.5, j + 0.5);
+                sig=0;
             }
         }
     }
@@ -640,9 +651,7 @@ void heartRender() {
     glMatrixMode(GL_MODELVIEW);	
     glLoadIdentity();
 
-    vector<Light*> lights;
-    lights.push_back(new DirectionalLight(0,-1,-1,makeVector(1.0,1.0,1.0)));
-    drawHeart(viewport.w/2,viewport.h/2,min(viewport.w,viewport.h)/10.0, makeVector(.1,.1,.1), makeVector(1.0,0.0,0.0), makeVector(1.0,1.0,1.0), lights);
+    drawHeart(viewport.w/2,viewport.h/2,min(viewport.w,viewport.h)/10.0);
 
     glFlush();
     glutSwapBuffers();
